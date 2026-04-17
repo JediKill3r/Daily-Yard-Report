@@ -17,28 +17,25 @@ export default async (req) => {
       });
     }
 
-    const escapedItemName = String(itemName)
-      .replace(/\\/g, '\\\\')
-      .replace(/"/g, '\\"')
-      .replace(/\n/g, '\\n');
-
-    const escapedColumnValues = JSON.stringify(columnValues)
-      .replace(/\\/g, '\\\\')
-      .replace(/"/g, '\\"')
-      .replace(/\n/g, '\\n');
-
     const query = `
-      mutation {
+      mutation CreateItem($boardId: ID!, $groupId: String!, $itemName: String!, $columnValues: JSON!) {
         create_item(
-          board_id: ${boardId},
-          group_id: "${groupId}",
-          item_name: "${escapedItemName}",
-          column_values: "${escapedColumnValues}"
+          board_id: $boardId
+          group_id: $groupId
+          item_name: $itemName
+          column_values: $columnValues
         ) {
           id
         }
       }
     `;
+
+    const variables = {
+      boardId,
+      groupId,
+      itemName,
+      columnValues: JSON.stringify(columnValues),
+    };
 
     const mondayRes = await fetch('https://api.monday.com/v2', {
       method: 'POST',
@@ -46,7 +43,7 @@ export default async (req) => {
         'Content-Type': 'application/json',
         Authorization: apiToken,
       },
-      body: JSON.stringify({ query }),
+      body: JSON.stringify({ query, variables }),
     });
 
     const result = await mondayRes.json();
@@ -70,7 +67,9 @@ export default async (req) => {
     });
   } catch (error) {
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }),
       {
         status: 500,
         headers: { 'Content-Type': 'application/json' },
