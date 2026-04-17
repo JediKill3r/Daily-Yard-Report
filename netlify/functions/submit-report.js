@@ -17,7 +17,7 @@ export default async (req) => {
       });
     }
 
-    const query = `
+    const createItemQuery = `
       mutation CreateItem($boardId: ID!, $groupId: String!, $itemName: String!, $columnValues: JSON!) {
         create_item(
           board_id: $boardId
@@ -30,29 +30,32 @@ export default async (req) => {
       }
     `;
 
-    const variables = {
+    const createItemVariables = {
       boardId,
       groupId,
       itemName,
       columnValues: JSON.stringify(columnValues),
     };
 
-    const mondayRes = await fetch('https://api.monday.com/v2', {
+    const itemRes = await fetch('https://api.monday.com/v2', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: apiToken,
       },
-      body: JSON.stringify({ query, variables }),
+      body: JSON.stringify({
+        query: createItemQuery,
+        variables: createItemVariables,
+      }),
     });
 
-    const result = await mondayRes.json();
+    const itemResult = await itemRes.json();
 
-    if (!mondayRes.ok || result.errors) {
+    if (!itemRes.ok || itemResult.errors) {
       return new Response(
         JSON.stringify({
-          error: result.errors?.[0]?.message || 'Failed to create item in Monday',
-          details: result,
+          error: itemResult.errors?.[0]?.message || 'Failed to create item in Monday',
+          details: itemResult,
         }),
         {
           status: 500,
@@ -61,10 +64,68 @@ export default async (req) => {
       );
     }
 
-    return new Response(JSON.stringify({ ok: true, data: result.data }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
+    const itemId = itemResult?.data?.create_item?.id;
+
+    const updateBody = [
+      `Daily Yard Report`,
+      ``,
+      `Location: ${columnValues.text || 'None'}`,
+      ``,
+      columnValues.projectManagementNotes || 'No report details provided.',
+    ].join('\n');
+
+    const createUpdateQuery = `
+      mutation CreateUpdate($itemId: ID!, $body: String!) {
+        create_update(item_id: $itemId, body: $body) {
+          id
+        }
+      }
+    `;
+
+    const updateVariables = {
+      itemId,
+      body: updateBody,
+    };
+
+    const updateRes = await fetch('https://api.monday.com/v2', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: apiToken,
+      },
+      body: JSON.stringify({
+        query: createUpdateQuery,
+        variables: updateVariables,
+      }),
     });
+
+    const updateResult = await updateRes.json();
+
+    if (!updateRes.ok || updateResult.errors) {
+      return new Response(
+        JSON.stringify({
+          error: updateResult.errors?.[0]?.message || 'Item created, but failed to create update',
+          details: updateResult,
+          itemId,
+        }),
+        {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+        }
+      );
+    }
+
+    return new Response(
+      JSON.stringify({
+        ok: true,
+        itemId,
+        updateId: updateResult?.data?.create_update?.id,
+      }),
+      {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    );
   } catch (error) {
     return new Response(
       JSON.stringify({
