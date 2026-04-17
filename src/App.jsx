@@ -73,6 +73,7 @@ export default function App() {
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
+
     if (validationErrors[field]) {
       setValidationErrors((prev) => {
         const next = { ...prev };
@@ -104,9 +105,11 @@ export default function App() {
     if (!formData.jobNumber.trim()) errors.jobNumber = 'Job Number is required';
     if (!formData.costCode.trim()) errors.costCode = 'Cost Code is required';
     if (!formData.foreman.trim()) errors.foreman = 'Foreman is required';
+
     if (!formData.workerCount || Number(formData.workerCount) < 0) {
       errors.workerCount = 'Worker Count is required';
     }
+
     if (!formData.totalHours || Number(formData.totalHours) <= 0) {
       errors.totalHours = 'Total hours must be greater than 0';
     }
@@ -159,6 +162,23 @@ export default function App() {
     return sections.join('\n');
   };
 
+  const buildFullTextReport = () => {
+    return [
+      buildSummary(),
+      '',
+      'DAILY ACTIVITIES',
+      buildActivityLog() || 'None',
+      '',
+      buildDetailedNotes(),
+      '',
+      `Job Number: ${formData.jobNumber}`,
+      `Cost Code: ${formData.costCode}`,
+      `Worker Count: ${formData.workerCount}`,
+      `Total Hours: ${formData.totalHours}`,
+      `Weather: ${formData.weather || 'None'}`,
+    ].join('\n');
+  };
+
   const resetForm = () => {
     setFormData({
       date: new Date().toISOString().split('T')[0],
@@ -187,7 +207,9 @@ export default function App() {
     setSubmitting(true);
 
     try {
-      const reportTitle = `Daily Yard Report - ${formData.location} - ${new Date(formData.date).toLocaleDateString('en-US', {
+      const reportTitle = `Daily Yard Report - ${formData.location} - ${new Date(
+        formData.date
+      ).toLocaleDateString('en-US', {
         month: '2-digit',
         day: '2-digit',
         year: 'numeric',
@@ -198,18 +220,7 @@ export default function App() {
         itemName: reportTitle,
         columnValues: {
           shift: formData.foreman,
-          text: buildSummary(),
-          projectManagementNotes: [
-            buildActivityLog(),
-            '',
-            buildDetailedNotes(),
-            '',
-            `Job Number: ${formData.jobNumber}`,
-            `Cost Code: ${formData.costCode}`,
-            `Worker Count: ${formData.workerCount}`,
-            `Total Hours: ${formData.totalHours}`,
-            `Weather: ${formData.weather || 'None'}`,
-          ].join('\n'),
+          text: buildFullTextReport(),
           startDate: { date: formData.date },
         },
       });
@@ -352,7 +363,9 @@ export default function App() {
                       >
                         Remove
                       </button>
-                    ) : <div />}
+                    ) : (
+                      <div />
+                    )}
                   </div>
                 ))}
               </div>
